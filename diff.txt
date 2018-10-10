@@ -1,0 +1,106 @@
+List of required changes to default CircAdapt installation. The modified version must be placed in the "worker0" folder.
+
+
+
+Adapt0.m
+***************
+  % ---- end flow error calculation
+  
++ if any([isnan(FlowVec),isnan(ErrFlow)])
++     Par.Failure = 1;
++ end
++ 
+  % === identify parameter to make stationary ====
+
+
+
+AdaptRest.m
+***************
+  %=== end flow error calculation
+  
++ if any([isnan(FlowVec),isnan(ErrFlow)])
++     Par.Failure = 1;
++ end
++ 
+  %=== Carrying out adaptation
+
+
+
+CircAdapt.m
+***************
+      tol=1e-4; %tol= 1e-4 or 1e-5: trade off accuracy and calculation speed
+      opt = odeset('RelTol',tol,'AbsTol',tol,'Events',@myEventsFcn);
+      [tDummy,SVarAppend,~,~,~]= ode113(@CircSVarDot,...
+          TimePoints,Par.SVar(end,:),opt); % solving of Differential Equations
+     
++     if isfield(Par,'Failure')
++         if Par.Failure == 1
++             return
++         end
++     end
++     
+      SVar= [SVar;SVarAppend(2:end,:)]; %appends 1-beat SVar-vector
+***************
+  return
++ 
++ function [value,isterminal,direction] = myEventsFcn(t,y);
++ 
++ global Par
++ 
++ value = 1;
++ isterminal = 1;
++ direction = 0;
++ 
++ if isfield(Par,'Failure')
++     if Par.Failure == 1
++         value = 0;
++     end
++ end
++ 
++ return
+
+
+
+CircSVarDot.m
+***************
+  % Enlarged leak of atrioventricular valves during diastole
+  dL= Par.Lv.T ./ Par.Lv.Am *(5e-4*Par.Lv.AmRef^2/Par.Lv.VWall); % estimate mitral leak signal
+  PassiveLv= 1-tanh(dL.^2); % If passive, mitral valve leaks
++ 
++ if isfield(Par.ValveLAv,'LeakRatio') % If value has been set use it
++     Par.ValveLAv.ALeak= max(0.2*PassiveLv,Par.ValveLAv.LeakRatio) * Par.ValveLAv.AOpen;
++ else % Otherwise use the default
++     Par.ValveLAv.ALeak= max(0.2*PassiveLv,1e-6) * Par.ValveLAv.AOpen;
++ end
++ 
+  % Mitral regurgitation
+***************
+SVarDot= real(Par.SVarDot)'; % odeXX requires SVarDot to be a row vector
+  
++ if isfield(Par,'Failure')
++     if etime(clock,Par.ODEtime) > 15
++         'ODE overtime'
++         Par.Failure = 1;
++     end
++ end
++ 
+  return
+
+
+
+Timing.m
+***************
+  % Delay times electrical activation
+  tRa2La= 0.02*tCycleRef/0.85 *TimeFac;
+  tRa2Rv= Par.Ra.Sarc.TimeAct -0.10*tCycle*TimeFac + 0.02*tCycleRef*TimeFac/0.85; %TauAv
++ if isfield(Par.General,'QRS')
++     tRv2Lv= Par.General.QRS; %-0.00;       % pacing delay LBBB, negative: prepacing
++ else
+      tRv2Lv= -0.00;       % pacing delay LBBB, negative: prepacing
++ end
+  tRv2Sv= 0.5*tRv2Lv;  % pacing delay LBBB, negative: prepacing
+  tRa2Ra= tCycle;      % cycle time
+  % tRa2Ra= tRa2Ra*(1+0.3*(rand-0.5)); % irregular HR
+  % DtLv   = 0.10;       % dispersion Lv activation time
+  
+  % Time interval of simulation
