@@ -2,7 +2,7 @@
 
 CircOpt is an optimization framework for the tuning of patient/subject-specific circulatory models. It is implemented in Matlab and uses [CircAdapt](http://www.circadapt.org) for model evaluations.
 
-[Inputs and outputs of CircOpt process](CircOptFlow.png)
+![Inputs and outputs of CircOpt process](CircOptFlow.png)
 
 ## Features
 This project contains a number of features that support the automation of model tuning: 
